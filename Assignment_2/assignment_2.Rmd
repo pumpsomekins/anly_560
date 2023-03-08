@@ -1,0 +1,269 @@
+---
+title: "unemployment"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(zoo)
+library(plotly)
+library(ggplot2)
+library(tseries)
+```
+
+```{r}
+unemploy_data <- read.csv('unemployment_data_us.csv')
+unemploy_data_complete <- na.omit(unemploy_data)
+```
+
+```{r}
+unemploy_data_complete$Date <- as.Date(as.yearmon(unemploy_data_complete$Date, "%b-%Y"))
+rownames(unemploy_data_complete) <- 1:nrow(unemploy_data_complete)
+unemploy_data_complete <- unemploy_data_complete[-c(22, 33),]
+```
+
+```{r}
+fig <- plot_ly()
+
+fig <- fig %>% add_trace(data = unemploy_data_complete, x = ~Date, y = ~Primary_School, name = "Primary School", type = "scatter")
+fig <- fig %>% add_trace(data = unemploy_data_complete, x = ~Date, y = ~High_School, name = "High School", type = "scatter")
+fig <- fig %>% add_trace(data = unemploy_data_complete, x = ~Date, y = ~Associates_Degree, name = "Associates_Degree", type = "scatter")
+fig <- fig %>% add_trace(data = unemploy_data_complete, x = ~Date, y = ~Professional_Degree, name = "Professional_Degree", type = "scatter") %>% layout(title = "Unemployment Rate by Education Level")
+
+fig
+```
+
+The plot expresses a downward trend for the past decade for the unemployment rate for all education levels.
+
+```{r}
+fig <- plot_ly()
+
+fig <- fig %>% add_trace(data = unemploy_data_complete, x = ~Date, y = ~White, name = "White", type = "scatter")
+fig <- fig %>% add_trace(data = unemploy_data_complete, x = ~Date, y = ~Black, name = "Black", type = "scatter")
+fig <- fig %>% add_trace(data = unemploy_data_complete, x = ~Date, y = ~Asian, name = "Asian", type = "scatter")
+fig <- fig %>% add_trace(data = unemploy_data_complete, x = ~Date, y = ~Hispanic, name = "Hispanic", type = "scatter") %>% layout(title = "Unemployment Rate by Race")
+
+fig
+```
+
+The plot expresses a downward trend for the past decade for the unemployment rate for races.
+
+```{r}
+fig <- plot_ly()
+
+fig <- fig %>% add_trace(data = unemploy_data_complete, x = ~Date, y = ~Men, name = "Men", type = "scatter")
+fig <- fig %>% add_trace(data = unemploy_data_complete, x = ~Date, y = ~Women, name = "Women", type = "scatter")  %>% layout(title = "Unemployment Rate by Gender")
+
+fig
+```
+
+The plot expresses a downward trend for the past decade for the unemployment rate for both genders.
+
+```{r}
+unemploy_data_ts = subset(unemploy_data_complete, select = -c(Year, Month))
+unemploy_data_ts <- unemploy_data_ts[order(unemploy_data_ts$Date), ]
+rownames(unemploy_data_ts) <- 1:nrow(unemploy_data_ts)
+
+Primary_School_ts = ts(unemploy_data_ts$Primary_School, start = c(2010, 1), frequency = 12)
+High_School_ts = ts(unemploy_data_ts$High_School, start = c(2010, 1), frequency = 12)
+Associates_Degree_ts = ts(unemploy_data_ts$Associates_Degree, start = c(2010, 1), frequency = 12)
+Professional_ts = ts(unemploy_data_ts$Professional_Degree, start = c(2010, 1), frequency = 12)
+White_ts = ts(unemploy_data_ts$White, start = c(2010, 1), frequency = 12)
+Black_ts = ts(unemploy_data_ts$Black, start = c(2010, 1), frequency = 12)
+Asian_ts = ts(unemploy_data_ts$Asian, start = c(2010, 1), frequency = 12)
+Hispanic_ts = ts(unemploy_data_ts$Hispanic, start = c(2010, 1), frequency = 12)
+Men_ts = ts(unemploy_data_ts$Men, start = c(2010, 1), frequency = 12)
+Women_ts = ts(unemploy_data_ts$Women, start = c(2010, 1), frequency = 12)
+```
+
+```{r}
+decomp<-decompose(Primary_School_ts)
+plot(decomp)
+decomp<-decompose(High_School_ts)  
+plot(decomp) 
+decomp<-decompose(Associates_Degree_ts)  
+plot(decomp) 
+decomp<-decompose(Professional_ts)  
+plot(decomp) 
+decomp<-decompose(White_ts)  
+plot(decomp) 
+decomp<-decompose(Black_ts)  
+plot(decomp) 
+decomp<-decompose(Asian_ts)  
+plot(decomp) 
+decomp<-decompose(Hispanic_ts)  
+plot(decomp) 
+decomp<-decompose(Men_ts)  
+plot(decomp) 
+decomp<-decompose(Women_ts)  
+plot(decomp) 
+```
+
+All data shows a downward trend.
+There is a seasonal support for all data happens around mid point of the year.
+The random plot exhibits white noise so the best forecast is the overall mean of the historical observations.
+This is additive since the seasonal changes do not enlarge over the time.
+
+```{r}
+decomp<-gglagplot(Primary_School_ts)
+plot(decomp)
+decomp<-gglagplot(High_School_ts)  
+plot(decomp) 
+decomp<-gglagplot(Associates_Degree_ts)  
+plot(decomp) 
+decomp<-gglagplot(Professional_ts)  
+plot(decomp) 
+decomp<-gglagplot(White_ts)  
+plot(decomp) 
+decomp<-gglagplot(Black_ts)  
+plot(decomp) 
+decomp<-gglagplot(Asian_ts)  
+plot(decomp) 
+decomp<-gglagplot(Hispanic_ts)  
+plot(decomp) 
+decomp<-gglagplot(Men_ts)  
+plot(decomp) 
+decomp<-gglagplot(Women_ts)  
+plot(decomp) 
+```
+
+The positive relationship is very strong across all plots besides a bit fluctuates in Asian one, that they reflect strong seasonality in the data
+
+```{r}
+fit = lm(Primary_School_ts~time(Primary_School_ts), na.action=NULL) 
+plot1 <- ggAcf(Primary_School_ts, 48, main="Original Data: Primary School")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(Primary_School_ts), 48, main="first differenced data")
+plot4 <- ggPacf(Primary_School_ts, 48, main="Original Data: Primary School")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(Primary_School_ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+
+fit = lm(High_School_ts~time(High_School_ts), na.action=NULL) 
+plot1 <- ggAcf(High_School_ts, 48, main="Original Data: High School")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(High_School_ts), 48, main="first differenced data")
+plot4 <- ggPacf(High_School_ts, 48, main="Original Data: High School")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(High_School_ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+
+fit = lm(Associates_Degree_ts~time(Associates_Degree_ts), na.action=NULL) 
+plot1 <- ggAcf(Associates_Degree_ts, 48, main="Original Data: Associates Degree")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(Associates_Degree_ts), 48, main="first differenced data")
+plot4 <- ggPacf(Associates_Degree_ts, 48, main="Original Data: Associates Degree")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(Associates_Degree_ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+
+fit = lm(Professional_ts~time(Professional_ts), na.action=NULL) 
+plot1 <- ggAcf(Professional_ts, 48, main="Original Data: Professional")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(Professional_ts), 48, main="first differenced data")
+plot4 <- ggPacf(Professional_ts, 48, main="Original Data: Professional_ts")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(Professional_ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+
+fit = lm(White_ts~time(White_ts), na.action=NULL) 
+plot1 <- ggAcf(White_ts, 48, main="Original Data: White")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(White_ts), 48, main="first differenced data")
+plot4 <- ggPacf(White_ts, 48, main="Original Data: White")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(White_ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+
+fit = lm(Black_ts~time(Black_ts), na.action=NULL) 
+plot1 <- ggAcf(Black_ts, 48, main="Original Data: Black")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(Black_ts), 48, main="first differenced data")
+plot4 <- ggPacf(Black_ts, 48, main="Original Data: Black")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(Black_ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+
+fit = lm(Asian_ts~time(Asian_ts), na.action=NULL) 
+plot1 <- ggAcf(Asian_ts, 48, main="Original Data: Asian")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(Asian_ts), 48, main="first differenced data")
+plot4 <- ggPacf(Asian_ts, 48, main="Original Data: Asian")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(Asian_ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+
+fit = lm(Hispanic_ts~time(Hispanic_ts), na.action=NULL) 
+plot1 <- ggAcf(Hispanic_ts, 48, main="Original Data: Hispanic")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(Hispanic_ts), 48, main="first differenced data")
+plot4 <- ggPacf(Hispanic_ts, 48, main="Original Data: Hispanic")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(Hispanic_ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+
+fit = lm(Men_ts~time(Men_ts), na.action=NULL) 
+plot1 <- ggAcf(Men_ts, 48, main="Original Data: Men")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(Men_ts), 48, main="first differenced data")
+plot4 <- ggPacf(Men_ts, 48, main="Original Data: Men")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(Men_ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+
+fit = lm(Women_ts~time(Women_ts), na.action=NULL) 
+plot1 <- ggAcf(Women_ts, 48, main="Original Data: Women")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(Women_ts), 48, main="first differenced data")
+plot4 <- ggPacf(Women_ts, 48, main="Original Data: Women")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(Women_ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+```
+
+Throughout the plots, the data exhibits decaying correlation indicating that the current value of the time series is not significantly related to its past values.
+
+In addition, the none of the plots has all the ACF and PACF inside the threshold, so they are highly possible not stationary.
+
+```{r}
+adf.test(Primary_School_ts)
+adf.test(High_School_ts)
+adf.test(Associates_Degree_ts)
+adf.test(Professional_ts)
+adf.test(White_ts)
+adf.test(Black_ts)
+adf.test(Asian_ts)
+adf.test(Hispanic_ts)
+adf.test(Men_ts)
+adf.test(Women_ts)
+```
+
+Yes, the answer supports my conclusion from (5)
+
+```{r}
+Asian_ts_log <- log(Asian_ts)
+fit = lm(Asian_ts_log~time(Asian_ts_log), na.action=NULL) 
+plot1 <- ggAcf(Asian_ts_log, 48, main="Original Data: Asian")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(Asian_ts_log), 48, main="first differenced data")
+plot4 <- ggPacf(Asian_ts_log, 48, main="Original Data: Asian")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(Asian_ts_log), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+```
+
+```{r}
+adf.test(Asian_ts_log)
+```
+
+I was not able to turn non-stationary into stationary for all time series data, however, for Asian, i was able to do so, the Augmented Dickey-Fuller Test with log transformation of Asian time series recorded a null hypothesis below p = 0.05 so we reject the null hypothesis and accept the alternative hypothesis that Asian in log mode is stationary.

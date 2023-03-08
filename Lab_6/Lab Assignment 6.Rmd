@@ -1,0 +1,310 @@
+---
+title: "Lab 6 Assignment"
+author: "yifeng chen"
+
+output: rmdformats::material
+---
+
+```{r, echo=FALSE,message=FALSE,warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(forecast)
+library(astsa)
+library(zoo)
+library(gridExtra)
+library(xts)
+library(tseries)
+library(fpp2)
+library(fma)
+library(lubridate)
+library(tidyverse)
+library(TSstudio)
+library(quantmod)
+library(tidyquant)
+library(plotly)
+library(ggplot2)
+```
+
+# Problem 1
+
+Please use the Ice cream Production `icecreamproduction.csv` data set. This is Ice Cream Production for United States.
+downloaded from <https://fred.stlouisfed.org/series/M0174BUSM411NNBR>
+
+These Data Are For Factory Production Only. Source: United States Department Of Agriculture, "Production And Consumption Of Manufactured Dairy Products, " (Technical Bulletin No.722, April 1940) P.71 And Direct From Bureau Of Agricultural Economics.
+
+ a. Plot the data and comment. Also try using decomposing, lag plots and ACF to check for seasonal correlation. What do you observe? Also, comment about stationarity.
+ 
+```{r}
+wt = read.csv("icecreamproduction.csv", header = TRUE)
+plot_ly(data = wt, x = ~DATE, y = ~M0174BUSM411NNBR)
+
+temp.ts = ts(wt$M0174BUSM411NNBR, start=decimal_date(as.Date("1918-01-01")), frequency = 12)
+gglagplot(temp.ts)
+
+decomp<-decompose(temp.ts)
+plot(decomp)
+
+fit = lm(temp.ts~time(temp.ts), na.action=NULL) 
+plot1 <- ggAcf(temp.ts, 48, main="Original Data: icecreamproduction")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(temp.ts), 48, main="first differenced data")
+plot4 <- ggPacf(temp.ts, 48, main="Original Data: icecreamproduction")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(temp.ts), 48, main="first differenced data")
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+```
+
+There's a seasonal pattern, however it is highly possible not stationary given that across 3 plots the data shows it indicates that the correlation coefficient is significantly different from zero at the chosen level of significance.
+
+c. Difference and Select the relevant p,d,q,P,D,Q.
+
+ACF Plot: q=0,1,2,3; Q=1,2
+PACF plot: p=0,1,2; P=1,2
+
+d. Try to find at the best model and a model with close AIC, BIC ,AICc values and considering the parsimonious principle. This means narrow it down to 2 or 3 final models
+
+```{r}
+#write a funtion
+SARIMA.c=function(p1,p2,q1,q2,P1,P2,Q1,Q2,data){
+  
+  #K=(p2+1)*(q2+1)*(P2+1)*(Q2+1)
+  
+  temp=c()
+  d=1
+  D=1
+  s=12
+  
+  i=1
+  temp= data.frame()
+  ls=matrix(rep(NA,9*35),nrow=35)
+  
+  
+  for (p in p1:p2)
+  {
+    for(q in q1:q2)
+    {
+      for(P in P1:P2)
+      {
+        for(Q in Q1:Q2)
+        {
+          if(p+d+q+P+D+Q<=9)
+          {
+            
+            model<- Arima(data,order=c(p-1,d,q-1),seasonal=c(P-1,D,Q-1))
+            ls[i,]= c(p-1,d,q-1,P-1,D,Q-1,model$aic,model$bic,model$aicc)
+            i=i+1
+            #print(i)
+            
+          }
+          
+        }
+      }
+    }
+    
+  }
+  
+  
+  temp= as.data.frame(ls)
+  names(temp)= c("p","d","q","P","D","Q","AIC","BIC","AICc")
+  
+  temp
+  
+}
+
+output=SARIMA.c(p1=1,p2=3,q1=1,q2=4,P1=1,P2=3,Q1=1,Q2=3,data=temp.ts)
+```
+
+```{r}
+output[which.min(output$AIC),] 
+output[which.min(output$BIC),]
+output[which.min(output$AICc),]
+
+```
+
+or SARIMA(2, 1, 1, 1, 1, 1, 12)
+
+e. Do model diagnosis to find the best model out of the above . 
+
+```{r}
+model_output <- capture.output(sarima(temp.ts, 0,1,1,1,1,1,12))
+cat(model_output[28:60], model_output[length(model_output)], sep = "\n")
+```
+```{r}
+model_output <- capture.output(sarima(temp.ts, 2, 1, 1, 1, 1, 1, 12))
+cat(model_output[28:60], model_output[length(model_output)], sep = "\n") 
+```
+
+SARIMA(2, 1, 1, 1, 1, 1, 12) has a lower iteration value so i choose this.
+
+f. Compare your chosen model with a benchmark method.
+
+```{r}
+fit <- Arima(temp.ts, order=c(2,1,1), seasonal=c(1,1,1))
+
+autoplot(temp.ts) +
+  autolayer(meanf(temp.ts, h=36),
+            series="Mean", PI=FALSE) +
+  autolayer(naive(temp.ts, h=36),
+            series="Naïve", PI=FALSE) +
+  autolayer(snaive(temp.ts, h=36),
+            series="SNaïve", PI=FALSE)+
+  autolayer(rwf(temp.ts, h=36, drift=TRUE),
+            series="Drift", PI=FALSE)+
+  autolayer(forecast(fit,36), 
+            series="fit",PI=FALSE) +
+  guides(colour=guide_legend(title="Forecast"))
+
+f2 <- snaive(temp.ts, h=36) 
+
+accuracy(f2)
+
+summary(fit)
+```
+
+Model error measurements are much lower than snaive benchmark method.
+
+Therefore, our fitted model is good.
+
+g. Forecast for the next 3 years.
+
+```{r}
+fit %>% forecast(h=12) %>% autoplot() #next 3 years
+```
+
+h. Do a seasonal cross validation using 1 step ahead forecasts and compare the models. Which one has the lowest RMSE?
+
+```{r}
+train_data <- window(temp.ts, start = c(1918, 1), end = c(1939, 12))
+test_data <- window(temp.ts, start = c(1940, 1), end = c(1940, 12))
+
+arima_forecast <- function(train, test) {
+  arima_model <- arima(train, order = c(2,1,1), seasonal = c(1,1,1))
+  
+  forecast <- predict(arima_model, n.ahead = 1)$pred
+  
+  rmse <- sqrt(mean((forecast - test)^2))
+  
+  return(rmse)
+}
+
+cv_results <- rep(0, 12)
+for(i in 1:12) {
+  train <- window(temp.ts, start = c(1918, i), end = c(1939, i+11))
+  test <- window(temp.ts, start = c(1940, i), end = c(1940, i+11))
+  cv_results[i] <- arima_forecast(train, test)
+}
+
+print(cv_results)
+
+train_data <- window(temp.ts, start = c(1918, 1), end = c(1939, 12))
+test_data <- window(temp.ts, start = c(1940, 1), end = c(1940, 12))
+
+arima_forecast <- function(train, test) {
+  arima_model <- arima(train, order = c(0,1,1), seasonal = c(1,1,1))
+  
+  forecast <- predict(arima_model, n.ahead = 1)$pred
+  
+  rmse <- sqrt(mean((forecast - test)^2))
+  
+  return(rmse)
+}
+
+cv_results <- rep(0, 12)
+for(i in 1:12) {
+  train <- window(temp.ts, start = c(1918, i), end = c(1939, i+11))
+  test <- window(temp.ts, start = c(1940, i), end = c(1940, i+11))
+  cv_results[i] <- arima_forecast(train, test)
+}
+
+print(cv_results)
+```
+
+By comparing two models, 211111 has a lower RMSE
+
+j. Do a seasonal cross validation using 12 steps ahead forecasts. Explain the procedure in few words.
+
+```{r}
+train_data <- window(temp.ts, start = c(1918, 1), end = c(1939, 12))
+test_data <- window(temp.ts, start = c(1940, 1), end = c(1940, 12))
+
+arima_forecast <- function(train, test) {
+  arima_model <- arima(train, order = c(2,1,1), seasonal = c(1,1,1))
+  
+  forecast <- predict(arima_model, n.ahead = 12)$pred
+  
+  rmse <- sqrt(mean((forecast - test)^2))
+  
+  return(rmse)
+}
+
+cv_results <- rep(0, 12)
+for(i in 1:12) {
+  train <- window(temp.ts, start = c(1918, i), end = c(1939, i+11))
+  test <- window(temp.ts, start = c(1940, i), end = c(1940, i+11))
+  cv_results[i] <- arima_forecast(train, test)
+}
+
+print(cv_results)
+
+train_data <- window(temp.ts, start = c(1918, 1), end = c(1939, 12))
+test_data <- window(temp.ts, start = c(1940, 1), end = c(1940, 12))
+
+arima_forecast <- function(train, test) {
+  arima_model <- arima(train, order = c(0,1,1), seasonal = c(1,1,1))
+  
+  forecast <- predict(arima_model, n.ahead = 12)$pred
+  
+  rmse <- sqrt(mean((forecast - test)^2))
+  
+  return(rmse)
+}
+
+cv_results <- rep(0, 12)
+for(i in 1:12) {
+  train <- window(temp.ts, start = c(1918, i), end = c(1939, i+11))
+  test <- window(temp.ts, start = c(1940, i), end = c(1940, i+11))
+  cv_results[i] <- arima_forecast(train, test)
+}
+
+print(cv_results)
+```
+
+By comparing two models, 211111 has a lower RMSE
+
+First we seperate the data, the we create a function to perform ARIMA forecasting and calculate RMSE and get the result.
+
+# Extra Practice (no need to submit)
+
+a. Plot The monthly Australian electricity demand and comment on any patterns you see? 
+
+Dataset: "elec" {fma} ; Choose the starting year as 1980 and make sure the data is a time series object.
+
+```{r}
+library(fma)
+aelec <- window(elec, start=1980)
+autoplot(aelec, xlab ="Year", ylab="GWh")+ ggtitle("Monthly Australian Electricity Demand")
+```
+
+b. Look at the lag plot for seasonality. Comment.
+
+
+
+c. Look at the acf plot and comment.
+
+
+
+d. Difference and look at the acf plots. Comment.
+
+
+
+e. Select the relevant p,d,q,P,D,Q.
+
+
+f. Fit your chosen models. Compare the AIC, BIC ,AICc vlaues.
+
+
+g. Do model diagnosis.
+
+
+h.Do a seasonal cross validation using 1 step ahead forecasts.
+

@@ -1,0 +1,220 @@
+---
+title: "Lab 5 Assignments"
+author: "YIFENG CHEN"
+output: rmdformats::material
+---
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(forecast)
+library(astsa) 
+library(xts)
+library(gridExtra)
+library(tseries)
+library(fpp2)
+library(fma)
+library(lubridate)
+library(tidyverse)
+library(TSstudio)
+library(quantmod)
+library(tidyquant)
+library(plotly)
+library(ggplot2)
+```
+
+
+# Problem 1
+
+Use the temperature data in Washington D.C to answer this question.
+
+```{r}
+wt = read.csv("climate.csv", header = TRUE)
+head(wt)
+
+tobb= wt[1095:1344,c(3,11)]
+head(tobb)
+tobb$DATE<-as.Date(tobb$DATE,"%Y-%m-%d")
+
+
+tobb$DATE[1]
+tobb$DATE[length(tobb$DATE)]
+temp.ts = ts(tobb$TOBS, start=decimal_date(as.Date("2021-01-01")), frequency = 365.25)
+```
+
+## 1. Plot
+
+  a. Plot the data using ggplot or plotly and comment. 
+```{r}
+plot_ly(data = tobb, x = ~DATE, y = ~TOBS)
+```
+  
+  The data has no appear ant trend throughout the graph but it has a upward trend towards the middle of the year and then it begins to fall
+  
+  b. Do you think by taking the log transformation, does it make a difference, or make it better (less variation)?
+```{r}
+tobb_log = tobb
+tobb_log$TOBS = log(tobb_log$TOBS)
+plot_ly(data = tobb_log, x = ~DATE, y = ~TOBS)
+```
+
+It does not make much different, the data is still volatile.
+
+## 2. Check for seasonality
+Get the lag plots  and Try decomposing (just plotting is enough) to check for seasonality. If you can't decompose that means there is no seasonality present in the data
+
+```{r}
+gglagplot(temp.ts)
+# decompose(temp.ts)
+```
+
+there's a positive correlation but seem highly volatile
+but there is no seasonality because i cannot decompose the graph due to error.
+
+Error in decompose(temp.ts) : time series has no or less than 2 periods
+
+## 3. Fit an appropriate ARIMA model.
+
+Follow these steps.
+
+  a. Difference the data and check the acf and pacf graphs.
+```{r}
+fit = lm(temp.ts~time(temp.ts), na.action=NULL) 
+plot1 <- ggAcf(temp.ts, 48, main="Original Data: Primary School")
+plot2 <- ggAcf(resid(fit), 48, main="detrended data") 
+plot3 <- ggAcf(diff(temp.ts), 48, main="first differenced data")
+plot4 <- ggPacf(temp.ts, 48, main="Original Data: Primary School")
+plot5 <- ggPacf(resid(fit), 48, main="detrended data") 
+plot6 <- ggPacf(diff(temp.ts), 48, main="first differenced data")
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=3, nrow=2)
+```
+  
+  b. Does it need a second order differencing?
+
+first order is enough
+  
+  c. From the acf and pacf graphs (part a), choose a set of values for the
+  parameters p,d,q. (Remember this is real data, so choose a sequence of values for p and q)
+
+arima(3, 1, 1)
+
+  d. What are the choices of p,d,q?
+  
+p = 1, 2, 3, 4
+d = 1
+q = 1, 2, 3
+
+  
+  e. What is your best model? answer this using error metrics and model diagnostics. Plot your forecast for the best model you choose.
+```{r}
+d=1
+i=1
+temp= data.frame()
+ls=matrix(rep(NA,6*23),nrow=23) # roughly nrow = 3x4x2
+
+
+for (p in (2:5))# p=1,2,3 : 3
+{
+  for(q in 2:4)# q=1,2,3,4 :4
+  {
+    for(d in 0:1)# d=1,2 :2
+    {
+      
+      if(p-1+d+q-1<=7)
+      {
+        
+        model<- Arima(temp.ts,order=c(p-1,d,q-1),include.drift=TRUE) 
+        ls[i,]= c(p-1,d,q-1,model$aic,model$bic,model$aicc)
+        i=i+1
+        #print(i)
+        
+      }
+      
+    }
+  }
+}
+
+temp= as.data.frame(ls)
+names(temp)= c("p","d","q","AIC","BIC","AICc")
+
+#temp
+knitr::kable(temp)
+
+temp[which.min(temp$AIC),] 
+
+temp[which.min(temp$BIC),]
+
+temp[which.min(temp$AICc),]#3,2,1
+
+fit <- Arima(temp.ts, order=c(1, 1, 1))
+summary(fit)
+```
+  
+```{r}
+fit <- Arima(temp.ts, order=c(4, 1, 2))
+summary(fit)
+```
+
+I will go with 4, 1, 2 given the lower ME compare to 1, 1, 1
+
+```{r}
+autoplot(forecast(fit))
+```
+
+  f. Get the train(first 200 observations) ,test(last 50 observations) sets and fit the model to the train test.
+```{r}
+temp.ts_train = temp.ts[1:200]
+temp.ts_test = temp.ts[201:250]
+fit_train <- Arima(temp.ts_train, order=c(4, 1, 2))
+```
+  
+  g. Forecast using the test set. Use RMSE to compare your final 2 models.
+```{r}
+autoplot(forecast(Arima(temp.ts_test, order=c(4, 1, 2))))
+summary((Arima(temp.ts_test, order=c(4, 1, 2))))
+```
+  
+  h. Now the benchmark methods: use MAE and MSE for your ARIMA fit and benchmark methods and compare.Which model is good? Is your model outperform the benchmark methods.
+
+The test arima fit is better than the original fit which uses the entire dataset.
+  
+  i. Try to plot your original forecast in part e) and your forecasts with the train-test sets in the same graph and compare and comment.
+```{r}
+grid.arrange(autoplot(forecast(fit)), autoplot(forecast(Arima(temp.ts_test, order=c(4, 1, 2)))), nrow=1)
+```
+
+From the original plot we can see that the series expect a huge volalitiy in the future, however for the test set, we can see that it actually narrows the forested value a little.
+
+# Problem 2 (Practice)
+
+### Use the crude oil prices (use yahoo finance; ticker is "CL"; get prices from 1975-01-01)
+
+a) Plot the  Crude Oil Prices (for the adjusted closing price) and comment your visual conclusions. 
+
+
+b) Use the Augmented Dickey-Fuller Test to check the stationarity. 
+
+bb) Next, Use log transformation and plot the series. Comment. Do you see any difference when comparing to the original data fluctuations?
+
+
+(c) Get the ACF plot of the log transformed data. What can you say about the stationarity?
+
+
+d) Difference the transforemed time series data (part bb)  until it is stationary/weakly stationary. Plot the differenced data and comment. Also, Use the ACf plot and the Augmented Dickey-Fuller Test to check the stationarity .
+
+
+e) Plot the ACF and PACF plot and decide the order (p,d,q) of your ARIMA(p,d,q) process.
+
+
+f) What is your best model? answer this using error metrics and model diagnostics. Fit the best ARIMA(p,d,q) to the model using the code _**sarima()**_. If you have several choices for p,d,q you may select the model with lowest AIC, BIC or the model with the best model diagnostics. 
+
+_**Write the equation of the model.**_ (Does this model looks familiar? is it a Random Walk? yes/no?)
+
+
+g) Do a full model diagnostic for your chosen model. Use all the plots to describe about the residuals. (sarima function will give you these plots automatically)
+
+h) Use _**auto.arima()**_ to fit an ARIMA(p,d,q) for the above dataset in part (bb). Is it different from your chosen model? If so, why do you think is the reason?
+
+
+i) Forecast using the model (e) with a confidence band. Plot the forecasts and comment according to the problem.

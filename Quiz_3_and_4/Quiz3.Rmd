@@ -1,0 +1,139 @@
+---
+title: "Quiz 3-4"
+author: "Yifeng Chen"
+date: "2023-02-27"
+output: rmdformats::material
+---
+
+
+
+
+```{r, echo=FALSE,message=FALSE,warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(forecast)
+library(astsa) 
+library(xts)
+library(tseries)
+library(fpp2)
+library(fma)
+library(lubridate)
+library(tidyverse)
+library(TSstudio)
+library(quantmod)
+library(tidyquant)
+library(plotly)
+library(ggplot2)
+```
+
+
+# INSTRUCTIONS:
+
+Any potential violation of Georgetown's policy on academic integrity will be reported. All work on this exam must be your own. You are not allowed to communicate or gain information in any way from your classmates or seek outside human help on the exam. If you are using online resources always cite the sources (and/or include the links).
+
+You need to **SHOW YOUR WORK** in order to get full credits.
+
+**_This Quiz will give you credits for both Quiz 3 and 4. The points will be out of 200. (50% for each Quiz)_**
+
+Hint: In all of these analysis, don't forget to convert your data into relevant time series objects.
+
+------------------------------------------------------------------------
+
+# Problem 1
+
+1. (_5 points_) Load the data `monthly_climateDC.csv`. This data is coming from the Climate data `climateDC.csv` that you used for the Quiz 1 which was downloaded using NOAA. Here I have aggregated the data so that I have monthly outcomes.
+
+<https://www.ncdc.noaa.gov/cdo-web/search>
+
+**Data Description**
+
+This is climate data in the Washington, DC area  including temperature daily maximum/minimum, temperature at observation time,precipitation, snowfall, snow depth,..etc obtained from NOAA
+
+**STATION_NAME** (max 50 characters) is the name of the station (usually city/airport name). 
+
+**GEOGRAPHIC_LOCATION** (31 characters) is the latitude (decimated degrees w/northern hemisphere
+values > 0, southern hemisphere values < 0), longitude (decimated degrees w/western hemisphere
+values < 0, eastern hemisphere values > 0) and elevation above mean sea level (tenths of meters). 
+
+**DATE** is the year of the record (4 digits) followed by month (2 digits) and day (2 digits).
+
+**PRCP** = Precipitation (mm or inches as per user preference, inches to hundredths on Daily Form pdf file)
+
+**SNOW** = Snowfall (mm or inches as per user preference, inches to tenths on Daily Form pdf file)
+
+**TOBS** = Temperature at the time of observation (Fahrenheit or Celsius as per user preference)
+
+```{r}
+data = read_csv(file = 'monthly_climateDC.csv')[, -1]
+```
+
+2. (_85 points_) Here you will be fitting a model for the temperature which is `TOBS` in the dataset. 
+
+  - Follow all the steps of model fitting (plotting, looking for stationarity, looking for seasonality, model diagnostics..etc) that we have discussed in the class to find the best model. 
+
+ - Please use numbering to indicate the steps and use 1 sentence to explain what you are achieving at each step. ( These steps are essential: Narrowing down to at least 2 final models,using Cross validation to find the final model, then finally Comparing to Benchmark methods to see if your model is better than the simple benchmark methods)
+
+  - Don't forget to Comment and interpret throughout the model fitting.
+  
+```{r}
+
+```
+
+3. (_10 points_) Plot the Forecast for the next 2 years. Comment.
+
+```{r}
+
+```
+
+
+# Problem 2
+
+Please watch this video on the Lecture on `ARIMAX/SARIMAX Model fitting` and Lab 7 to answer the following questions.
+
+<https://georgetown.zoom.us/rec/share/cOFK0P67Y7S8d7jwBpL8DPhpqZf29eTOyy3APFxxDLhQoHCF-rvNxFGT0DKHrlYG.NCQUOG2soNNfxhnR>
+
+1. (_10 points_) Plot the `PRCP`,`SNOW` and `TOBS` in the same window as indicated in Lab 7 Example 3:part a. Comment/Interpret.
+
+```{r}
+
+```
+
+2. (_35 points_)We will be forecasting `Temperature` using `Precipitation` and `SnowFall`. 
+
+Create a new vector for exogenous variables and fit an ARIMAX/SARIMAX model for the data to forecast `Temperature` using `Precipitation` and `SnowFall`. You can use `auto.arima()` to fit the model.
+
+(Follow example in Lab 7:Example 3: part b)
+
+```{r}
+
+```
+
+3. (_10 points_)Check the residuals and the summary of the fit and comment.
+
+```{r}
+
+```
+
+4. (_25 points_)Forecasting: For this once, please use `auto.arima()` to forecast `Precipitation` and `SnowFall` separately (Here you will be using `auto.arima()` to fit your model and get the forecasts using `forecast()` function). Get these forecasts to 2 vectors named `fprcp` and `fsnw`.
+
+Using `fprcp` and `fsnw`, forecast the temperature using the model you fitted in part 2).
+
+(Follow the Example in Lab 7: Example 3: part e)
+
+```{r}
+
+```
+
+5. (_15 points_)Compare this model and forecasts with the model you fitted for Problem 1 and it's forecasts  which was only for the Temperature variable without any exogenous variables.
+
+```{r}
+
+```
+
+6. (_5 points_) Discuss(in a few sentences) about predicting the `temperature` of a city(Washington DC in this case) using `precipitation` and `snowfall`. What other variables can we use to predict the temperature of a city?
+
+(This is something to think about but no need to submit: Do you think that fitting a VAR model for `temperature`, Precipitation and `SnowFall` is much more appropriate than an ARIMAX/SARIMAX model here? Your answer to the above question will help you to think more about this discussion)
+
+```{r}
+
+```
